@@ -30,12 +30,11 @@
 (def-cmd wd 280 0 0) ;Watchdog
 (def-cmd dp 282 0 0) ;Disconnect
 
-(defmulti init-transport :protocol)
+(defmulti connect (fn [type & options] type))
 (defmulti ip-address-of :protocol)
-(defmulti close-transport :protocol)
 
-(defmulti client 
-  (fn [config peer-name] 
+(defmulti client
+  (fn [config peer-name]
     (let [state (dbg (:state config))] (go (>! (:state ((:peer-table config) peer-name)) state)) state)))
 
 (defn find-avps [cmd type code]
@@ -47,7 +46,9 @@
 (defn avps-of [& avps]
   "Make avp maps, flags is by default #{:m}"
   (map (fn [[code data flags]] (let [flags (if flags flags #{:m})] (map-of code data flags))) avps))
+
 (defn avp-of [cmd avp] (:data (find-avp cmd :required-avps avp)))
+
 (def ^:const two-to-twenty (java.lang.Math/pow 2 20))
 
 (defn create-e2e []
@@ -55,8 +56,8 @@
     (bit-shift-left (System/currentTimeMillis) 20)
     (-> two-to-twenty rand int)))
 
-(defn cer-req-of [config _]
-  (let [{:keys [hbh host realm peer-table]} config]
+(defn cer-req-of [config]
+  (let [{:keys [hbh host realm]} config]
     {:cmd ce-def, :app 0, :hbh hbh, :e2e (create-e2e), :flags #{:r}
       :required-avps
       (into #{} (avps-of  

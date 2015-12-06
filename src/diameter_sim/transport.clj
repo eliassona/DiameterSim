@@ -1,7 +1,7 @@
 (ns diameter.transport
   (:require [diameter_sim.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
-            [diameter_sim.base :refer [init-transport close-transport ip-address-of slide-chan avp-of
-                                   origin-host-avp-id]]
+            [diameter_sim.base :refer [connect slide-chan avp-of
+                                       origin-host-avp-id ip-address-of]]
             [clojure.core.async :refer [chan go >! <! take! put! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
            [java.io IOException OutputStream InputStream]))
@@ -31,115 +31,51 @@
           (assert (= actual-size ofs-size) (format "Expected size %s, actual size %s" ofs-size actual-size))
         (vec cmd))))))
 
-(defn read-loop [host #^Socket socket undecoded-chan connections]
+(defn read-loop [#^Socket socket c]
   (thread
     (try 
       (let [in (.getInputStream socket)
             ver-and-size (byte-array 4)
             read-cmd-fn (read-cmd in)]
-        (while (@connections host)
-          (put! undecoded-chan (read-cmd-fn))))
+        (while true
+          (put! c (read-cmd-fn))))
       (catch IOException e
         (.printStackTrace e)
         ))))
 
 
-(defn write-loop [host #^Socket socket encoded-chan connections]
+(defn write-loop [#^Socket socket c]
   (thread
     (try 
       (let [out (.getOutputStream socket)]
-        (while (@connections host)
-          (let [ba (take! encoded-chan)]
-            (.write #^OutputStream out #^bytes ba))))
+        (while true
+          (take! c #(.write #^OutputStream out #^bytes %))))
       (catch Exception e
-        (dbg e)
-        (swap! connections dissoc host)))))
-
-(defn init-connection [host socket undecoded-chan encoded-chan connections]
-  (when (= (@connections host) socket) 
-    (read-loop host socket undecoded-chan connections)
-    (write-loop host socket encoded-chan connections)))
-
-(defn swap-connections! [host socket connections]
-  (swap! connections (fn [conns] (if (nil? (conns host)) (assoc conns host socket) conns ))))
-
-(defn connect? [connections]
-  (= (-> connections deref :state) :connect))
-
-(defn init-client-connections [peer-table connections]
-  (thread 
-    (while (connect? connections) 
-      (doseq [p peer-table]
-        (try 
-          (let [{:keys [port host undecoded-chan encoded-chan send-cer]} (val p)
-                c (@connections host)]
-            (when (and send-cer (nil? c))
-              (let [socket (Socket. ^String host ^int port)]
-                (swap-connections! host socket connections)
-                (init-connection host socket undecoded-chan encoded-chan connections)
-                )
-              ))
-         (catch java.net.ConnectException e
-           (dbg e))))
-      (Thread/sleep 3000))))
+        (.printStackTrace e)))))
 
 
-(defmethod init-transport :tcp [config]
-  )
+(def default-options
+  {:port 3869,
+   :host "localhost"
+   :raw-in-chan (chan)
+   :raw-out-chan (chan)
+   })
 
 
 (defmethod ip-address-of :tcp [config] (.getHostAddress (InetAddress/getByName (:host config))))
 
 
-(defn send-req [cl req]
-  (put! (:in-chan cl) req))
+(defmethod connect :tcp [_ & options]
+  (let [om (merge default-options options)
+        {:keys [host port raw-in-chan raw-out-chan]} om
+        s (Socket. host port)]
+    (write-loop s raw-in-chan)
+    (read-loop s  raw-out-chan)
+    (assoc om :socket s)))
+
+
+
 
 ;;================== for testing ===========================================================
 
-
-(require '[diameter_sim.codec :refer [def-cmd]])
-(require '[diameter_sim.base :refer [origin-host-avp-id
-                                 origin-realm-avp-id
-                                 auth-application-id-avp-id
-                                 destination-host-avp-id
-                                 destination-realm-avp-id
-                                 session-id-avp-id
-                                 ]])
-
-(comment
-  (defn start-peer1 []
-    (def-cmd a-cmd 11 0 0)
-    (start {:host        "dia1",
-            :realm       "r1",
-            :in-chan     (chan 1000)
-            :out-chan    (chan 1000)
-            :user-chan   (chan 10)
-            :peer-table  (table-of :host [{:in-chan-client (chan 1000), :out-chan (chan 1000), :undecoded-chan (chan 1000), :encoded-chan (chan 1000), :host "dia2", :port 3869,}
-                                          ])
-            :realm-table (table-of :realm [{:realm "r2", :app-ids #{100}, :hosts ["dia2"], :strategy :failover, :action :asdf}])
-            }))
-
-
-  (defn start-peer2 []
-    (def-cmd a-cmd 11 0 0)
-    (start {:in-chan     (chan 1000), :out-chan (chan 1000), :user-chan (chan 1000)
-            :host        "dia2", :realm "r2", :port 3869,
-            :peer-table  (table-of :host [{, :undecoded-chan (chan 1000), :encoded-chan (chan 1000) :in-chan-client (chan 1000), :out-chan (chan 1000), :host "dia1", :port 3868, :send-cer false}])
-            :realm-table (table-of :realm [{:realm "r1", :app-ids #{100}, :hosts ["dia1"], :strategy :failover, :action :asdf}])}))
-
-  )
-
-
-(comment
-  (def-cmd a-cmd 11 0 0)
-
-  (send-req p
-            {:cmd           a-cmd-def, :app 100, :flags #{:r}
-             :required-avps #{{:code origin-realm-avp-id, :flags #{:m}, :data "dr"}
-                              {:code origin-host-avp-id, :flags #{:m}, :data "dia1"}
-                              {:code destination-host-avp-id, :flags #{}, :data "dia2"}
-                              {:code destination-realm-avp-id, :flags #{:m}, :data "dr"}
-                              {:code auth-application-id-avp-id, :flags #{:m}, :data 100}
-                              {:code session-id-avp-id, :flags #{}, :data "asdf"}}})
-  )
 
