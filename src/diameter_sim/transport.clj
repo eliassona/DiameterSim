@@ -2,7 +2,7 @@
   (:require [diameter_sim.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
             [diameter_sim.base :refer [connect slide-chan avp-of
                                        origin-host-avp-id ip-address-of]]
-            [clojure.core.async :refer [chan go >! <! take! put! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
+            [clojure.core.async :refer [chan go >! <! <!! >!! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
            [java.io IOException OutputStream InputStream]))
 
@@ -38,7 +38,7 @@
             ver-and-size (byte-array 4)
             read-cmd-fn (read-cmd in)]
         (while true
-          (put! c (read-cmd-fn))))
+          (>!! c (read-cmd-fn))))
       (catch IOException e
         (.printStackTrace e)
         ))))
@@ -49,7 +49,7 @@
     (try 
       (let [out (.getOutputStream socket)]
         (while true
-          (take! c #(.write #^OutputStream out #^bytes %))))
+          (.write #^OutputStream out #^bytes (<!! c))))
       (catch Exception e
         (.printStackTrace e)))))
 
@@ -69,8 +69,8 @@
   (let [om (merge default-options options)
         {:keys [host port raw-in-chan raw-out-chan]} om
         s (Socket. host port)]
-    (write-loop s raw-in-chan)
-    (read-loop s  raw-out-chan)
+    (write-loop s raw-out-chan)
+    (read-loop s  raw-in-chan)
     (assoc om :socket s)))
 
 

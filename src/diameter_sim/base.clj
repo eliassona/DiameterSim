@@ -122,16 +122,30 @@
 (defn successful-cea? [cmd]
   (and (cea? cmd) (= (:data (find-avp cmd :required-avps result-code-avp-id)) 2001)))
 
+
+(defn encode [req hbh options]
+  (byte-array (map byte (encode-cmd (req (assoc options :hbh hbh))))))
+
 (defn start! [& options]
   (let [opts (merge default-options (apply hash-map options))
         {:keys [req-chan send-wdr cer wdr]} opts
         {:keys [raw-in-chan raw-out-chan]} (connect opts)]
-    (>!! raw-out-chan (encode-cmd (cer (assoc opts :hbh 0))))
-    (let [cea (successful-cea? (decode-cmd (<!! raw-in-chan) false))]
-      (go-loop
-        []
-        (recur))
-      )
+    (>!! raw-out-chan (encode cer 0 opts))
+    (let [cea (decode-cmd (<!! raw-in-chan) false)]
+      (println cea)
+      (if (successful-cea? cea)
+        (do 
+          (println "Diameter session started")
+          (go-loop
+            [hbh 1]
+            (let [[v c] (alts! [raw-in-chan req-chan])]
+              (when v
+                (condp = c
+                  raw-in-chan (-> v (decode-cmd false) println)
+                  req-chan (>! raw-out-chan (encode v hbh opts)))
+                (recur (inc hbh))))))
+        (println "Terminating, CEA not successful")))
+    opts
     ))
 
 
