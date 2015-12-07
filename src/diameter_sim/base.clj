@@ -114,6 +114,7 @@
    :realm "cl"
    :cer       #(cer-req-of %)
    :send-wdr  true
+   :send-wda  true
    :wdr       #(wd-req-of %)
    :req-chan  (chan)
    :res-chan  (slide-chan)}
@@ -126,11 +127,15 @@
 (defn encode [req hbh options]
   (byte-array (map byte (encode-cmd (req (assoc options :hbh hbh))))))
 
+(defn encode [cmd]
+  (byte-array (map byte (encode-cmd cmd))))
+
 (defn start! [& options]
   (let [opts (merge default-options (apply hash-map options))
         {:keys [req-chan send-wdr cer wdr]} opts
         {:keys [raw-in-chan raw-out-chan]} (connect opts)]
-    (>!! raw-out-chan (encode cer 0 opts))
+    (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
+;    (>!! raw-out-chan (encode cer 0 opts))
     (let [cea (decode-cmd (<!! raw-in-chan) false)]
       (println cea)
       (if (successful-cea? cea)
@@ -141,8 +146,20 @@
             (let [[v c] (alts! [raw-in-chan req-chan])]
               (when v
                 (condp = c
-                  raw-in-chan (-> v (decode-cmd false) println)
-                  req-chan (>! raw-out-chan (encode v hbh opts)))
+                  raw-in-chan 
+                  (let [dv (-> v (decode-cmd false))]
+                    (cond 
+                      (wdr? dv)
+                      (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                      (dpr? dv)
+                      (do 
+                        (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                        (close! req-chan))
+                      :else
+                      (println dv)
+                    ))
+                                    
+                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh))))
                 (recur (inc hbh))))))
         (println "Terminating, CEA not successful")))
     opts
