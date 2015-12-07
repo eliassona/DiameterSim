@@ -65,7 +65,7 @@
 (defmethod ip-address-of :tcp [config] (.getHostAddress (InetAddress/getByName (:host config))))
 
 
-(defmethod connect :tcp [_ & options]
+(defmethod connect :tcp [options]
   (let [om (merge default-options options)
         {:keys [host port raw-in-chan raw-out-chan]} om
         s (Socket. host port)]
