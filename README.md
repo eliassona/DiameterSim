@@ -5,9 +5,13 @@ A Clojure library for testing the protocol Diameter.
 Note: UNDER CONSTRUCTION
 
 ## Usage
-Start the simulator
+
 ```clojure
-(import 'diameter_main.main)
+Import the lib
+(use 'diameter.main)
+(in-ns 'diameter.main)
+
+Start the simulator (assumes a diameter server running on localhost:3869)
 ```
 ```clojure
 (def options (start! :transport :tcp))

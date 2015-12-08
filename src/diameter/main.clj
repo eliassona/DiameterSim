@@ -1,11 +1,11 @@
-(ns diameter_sim.main
-  (:require [diameter_sim.codec :refer [def-cmd]]
-            [diameter_sim.base :refer [origin-realm-avp-id origin-host-avp-id
-                                       destination-host-avp-id auth-application-id-avp-id
-                                       session-id-avp-id
-                                       start!]]
+(ns diameter.main
+  (:require [diameter.codec :refer [def-cmd]]
+            [diameter.base :refer [origin-realm-avp-id origin-host-avp-id
+                                   destination-host-avp-id auth-application-id-avp-id
+                                   session-id-avp-id
+                                   start!]]
             [clojure.core.async :refer [>!!]])
-   (:use [diameter_sim.transport]))
+   (:use [diameter.transport]))
 
 (comment
   (def options (start! :transport :tcp))

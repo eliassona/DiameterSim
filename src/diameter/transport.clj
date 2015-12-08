@@ -1,7 +1,7 @@
-(ns diameter_sim.transport
-  (:require [diameter_sim.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
-            [diameter_sim.base :refer [connect slide-chan avp-of
-                                       origin-host-avp-id ip-address-of]]
+(ns diameter.transport
+  (:require [diameter.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
+            [diameter.base :refer [connect slide-chan avp-of
+                                   origin-host-avp-id ip-address-of]]
             [clojure.core.async :refer [chan go >! <! <!! >!! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
            [java.io IOException OutputStream InputStream]))

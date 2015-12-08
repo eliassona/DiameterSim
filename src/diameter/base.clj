@@ -1,5 +1,5 @@
-(ns diameter_sim.base
-  (:require [diameter_sim.codec :refer [def-avp def-cmd encode-cmd map-of decode-cmd request? answer? dbg]]
+(ns diameter.base
+  (:require [diameter.codec :refer [def-avp def-cmd encode-cmd map-of decode-cmd request? answer? dbg]]
             [clojure.core.async :refer [chan go >! <! >!! <!! go-loop alts! timeout onto-chan pipeline close! sliding-buffer]]))
 
 (def-avp

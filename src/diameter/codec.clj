@@ -1,4 +1,4 @@
-(ns diameter_sim.codec
+(ns diameter.codec
   (:require [instaparse.core :as insta]
             [clojure.core.match :refer [match]])
   (:use [clojure.pprint])
