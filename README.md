@@ -10,9 +10,9 @@ Note: UNDER CONSTRUCTION
 Import the lib
 (use 'diameter.main)
 (in-ns 'diameter.main)
+```
 
 Start the simulator (assumes a diameter server running on localhost:3869)
-```
 ```clojure
 (def options (start! :transport :tcp))
 ```
