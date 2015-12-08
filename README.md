@@ -40,7 +40,7 @@ true
 To see the default options that are used in the start! function
 ```clojure
 => (default-options)
-{:port 3869, :host "localhost", :raw-in-chan #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@757e32eb>, :raw-out-chan #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@381e88f9>}
+{:transport :tcp, :realm "cl", :send-wdr true, :host "localhost", :req-chan #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@19672ac3>, :res-chan #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@ea3b9c2>, :cer #<base$default_options$fn__13956 diameter.base$default_options$fn__13956@51fc04aa>, :print-fn #<core$println clojure.core$println@4202dafe>, :send-wda true, :wdr #<base$default_options$fn__13958 diameter.base$default_options$fn__13958@10519242>}
 ```
 
 

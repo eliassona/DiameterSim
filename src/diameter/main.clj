@@ -7,10 +7,11 @@
                                    start!
                                    send-cmd!
                                    find-avp
-                                   close-session!]]
+                                   close-session!
+                                   default-options]]
             [clojure.core.async :refer [>!! chan <!!]]
-            [clojure.test :refer [run-tests is deftest]])
-   (:use [diameter.transport]))
+            [clojure.test :refer [run-tests is deftest]]
+   [diameter.transport :refer []]))
 
 ;;A test command
 (def-cmd a-cmd 11 0 0)
