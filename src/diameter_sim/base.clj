@@ -159,7 +159,7 @@
                       (println dv)
                     ))
                                     
-                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh))))
+                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
                 (recur (inc hbh))))))
         (println "Terminating, CEA not successful")))
     opts
@@ -186,3 +186,14 @@
      (map-of raw-in-chan raw-out-chan)))
      
 
+(def-cmd a-cmd 11 0 0)
+
+
+
+(def a-cmd 
+  {:cmd a-cmd-def, :app 100, :flags #{:r} 
+       :required-avps #{{:code origin-realm-avp-id, :flags #{:m}, :data "cl"}
+                        {:code origin-host-avp-id, :flags #{:m}, :data "localhost"}
+                        {:code destination-host-avp-id, :flags #{:m}, :data "dr"}
+                        {:code auth-application-id-avp-id, :flags #{:m}, :data 100}
+                        {:code session-id-avp-id, :flags #{}, :data "asdf"}}})

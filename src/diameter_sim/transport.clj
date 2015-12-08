@@ -1,4 +1,4 @@
-(ns diameter.transport
+(ns diameter_sim.transport
   (:require [diameter_sim.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
             [diameter_sim.base :refer [connect slide-chan avp-of
                                        origin-host-avp-id ip-address-of]]
