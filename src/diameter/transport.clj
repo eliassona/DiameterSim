@@ -1,6 +1,6 @@
 (ns diameter.transport
   (:require [diameter.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
-            [diameter.base :refer [connect slide-chan avp-of
+            [diameter.base :refer [connect disconnect slide-chan avp-of
                                    origin-host-avp-id ip-address-of]]
             [clojure.core.async :refer [chan go >! <! <!! >!! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
@@ -39,8 +39,8 @@
             read-cmd-fn (read-cmd in)]
         (while true
           (>!! c (read-cmd-fn))))
-      (catch IOException e
-        (.printStackTrace e)
+      (catch Exception e
+        ;(.printStackTrace e)
         ))))
 
 
@@ -48,13 +48,21 @@
   (thread
     (try 
       (let [out (.getOutputStream socket)]
-        (while true
-          (.write #^OutputStream out #^bytes (<!! c))))
+        (loop []
+          (let [v (<!! c)]
+            (if (= v :disconnect)
+              (do 
+                (.write #^OutputStream out #^bytes (<!! c))
+                (.flush out)
+                (.close out))
+              (do 
+                (.write #^OutputStream out #^bytes v)
+                (recur))))))
       (catch Exception e
         (.printStackTrace e)))))
 
 
-(def default-options
+(defn default-options []
   {:port 3869,
    :host "localhost"
    :raw-in-chan (chan)
@@ -66,7 +74,7 @@
 
 
 (defmethod connect :tcp [options]
-  (let [om (merge default-options options)
+  (let [om (merge (default-options) options)
         {:keys [host port raw-in-chan raw-out-chan]} om
         s (Socket. host port)]
     (write-loop s raw-out-chan)
@@ -74,6 +82,9 @@
     (assoc om :socket s)))
 
 
+(defmethod disconnect :tcp [options]
+  (let [{:keys [socket]} options]
+    (.close socket)))
 
 
 ;;================== for testing ===========================================================

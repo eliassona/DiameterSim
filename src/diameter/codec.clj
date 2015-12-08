@@ -56,7 +56,7 @@
 
 (def ^:const version 1)
 
-(def cmd-flag-map {:r 0x80, :p 0x40, :e 0x20, :t 0x10})
+(def cmd-flag-map {:r 0x80, :p 0x40, :e 0x20, :t 0x10, :reserved-4 0x8, :reserved-3 0x4, :reserved-2 0x2, :reserved-1 0x1})
 
 (defn encode-cmd-flags [flag-set]
   (encode-flags flag-set cmd-flag-map))

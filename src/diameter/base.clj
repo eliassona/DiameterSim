@@ -31,6 +31,7 @@
 (def-cmd dp 282 0 0)                                        ;Disconnect
 
 (defmulti connect :transport)
+(defmulti disconnect :transport)
 (defmulti ip-address-of :transport)
 
 (defn find-avps [cmd type code]
@@ -108,7 +109,7 @@
 (def ^:const to-lower-case #(.toLowerCase #^String %))
 
 
-(def default-options
+(defn default-options []
   {:transport :tcp
    :host "localhost"
    :realm "cl"
@@ -132,9 +133,9 @@
   (byte-array (map byte (encode-cmd cmd))))
 
 (defn start! [& options]
-  (let [opts (merge default-options (apply hash-map options))
-        {:keys [req-chan send-wdr cer wdr print-fn]} opts
-        {:keys [raw-in-chan raw-out-chan]} (connect opts)]
+  (let [opts (merge (default-options) (apply hash-map options))
+        {:keys [req-chan res-chan send-wdr cer wdr print-fn]} opts
+        {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
     (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
     (let [cea (decode-cmd (<!! raw-in-chan) false)]
       (println cea)
@@ -144,25 +145,33 @@
           (go-loop
             [hbh 1]
             (let [[v c] (alts! [raw-in-chan req-chan])]
-              (when v
-                (condp = c
-                  raw-in-chan 
-                  (let [dv (-> v (decode-cmd false))]
-                    (cond 
-                      (wdr? dv)
-                      (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                      (dpr? dv)
-                      (do 
+              (if v 
+                (do
+                  (condp = c
+                    raw-in-chan 
+                    (let [dv (-> v (decode-cmd false))]
+                      (cond 
+                        (wdr? dv)
                         (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                        (close! req-chan))
-                      :else
-                      (print-fn dv)
-                    ))
-                                    
-                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
-                (recur (inc hbh))))))
+                        (dpr? dv)
+                        (do 
+                          (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                          (close! req-chan))
+                        :else
+                        (do 
+                          (print-fn dv)
+                          (>! res-chan dv))
+                      ))
+                    req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
+                (recur (inc hbh)))
+                (do 
+                  (>! raw-out-chan :disconnect)
+                  (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh, :e2e (create-e2e))))
+                  (print-fn (decode-cmd (<!! raw-in-chan) false))
+                  (disconnect connection)
+                  )))))
         (println "Terminating, CEA not successful")))
-    opts
+    (assoc opts :connection connection)
     ))
 
 
