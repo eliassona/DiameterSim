@@ -8,6 +8,7 @@ Note: UNDER CONSTRUCTION
 Start the simulator
 ```clojure
 (import 'diameter_main.main)
+```
 ```clojure
 (def options (start! :transport :tcp))
 ```
