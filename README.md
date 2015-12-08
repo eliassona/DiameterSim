@@ -6,8 +6,8 @@ Note: UNDER CONSTRUCTION
 
 ## Usage
 
-```clojure
 Import the lib
+```clojure
 (use 'diameter.main)
 (in-ns 'diameter.main)
 ```
