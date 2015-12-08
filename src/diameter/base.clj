@@ -138,10 +138,10 @@
         {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
     (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
     (let [cea (decode-cmd (<!! raw-in-chan) false)]
-      (println cea)
+      (print-fn cea)
       (if (successful-cea? cea)
         (do 
-          (println "Diameter session started")
+          (print-fn "Diameter session started")
           (go-loop
             [hbh 1]
             (let [[v c] (alts! [raw-in-chan req-chan])]
@@ -170,7 +170,7 @@
                   (print-fn (decode-cmd (<!! raw-in-chan) false))
                   (disconnect connection)
                   )))))
-        (println "Terminating, CEA not successful")))
+        (print-fn "Terminating, CEA not successful")))
     (assoc opts :connection connection)
     ))
 
