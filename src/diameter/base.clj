@@ -115,6 +115,7 @@
    :cer       #(cer-req-of %)
    :send-wdr  true
    :send-wda  true
+   :print-fn println
    :wdr       #(wd-req-of %)
    :req-chan  (chan)
    :res-chan  (slide-chan)}
@@ -132,10 +133,9 @@
 
 (defn start! [& options]
   (let [opts (merge default-options (apply hash-map options))
-        {:keys [req-chan send-wdr cer wdr]} opts
+        {:keys [req-chan send-wdr cer wdr print-fn]} opts
         {:keys [raw-in-chan raw-out-chan]} (connect opts)]
     (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
-;    (>!! raw-out-chan (encode cer 0 opts))
     (let [cea (decode-cmd (<!! raw-in-chan) false)]
       (println cea)
       (if (successful-cea? cea)
@@ -156,7 +156,7 @@
                         (>! raw-out-chan (encode (standard-answer-of dv opts)))
                         (close! req-chan))
                       :else
-                      (println dv)
+                      (print-fn dv)
                     ))
                                     
                   req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
@@ -165,6 +165,12 @@
     opts
     ))
 
+
+(defn send-cmd! [cmd options]
+  (>!! (:req-chan options) cmd))
+
+(defn close-session! [options]
+  (close! (:req-chan options)))
 
 (defmethod ip-address-of :local [config] "127.0.0.1")
 
@@ -186,14 +192,3 @@
      (map-of raw-in-chan raw-out-chan)))
      
 
-(def-cmd a-cmd 11 0 0)
-
-
-
-(def a-cmd 
-  {:cmd a-cmd-def, :app 100, :flags #{:r} 
-       :required-avps #{{:code origin-realm-avp-id, :flags #{:m}, :data "cl"}
-                        {:code origin-host-avp-id, :flags #{:m}, :data "localhost"}
-                        {:code destination-host-avp-id, :flags #{:m}, :data "dr"}
-                        {:code auth-application-id-avp-id, :flags #{:m}, :data 100}
-                        {:code session-id-avp-id, :flags #{}, :data "asdf"}}})

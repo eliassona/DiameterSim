@@ -29,8 +29,8 @@ Define a diameter command
 ```
 
 Send the command
-```clojure                        
-(>!! (:req-chan options) a-cmd)
+```clojure
+(send-cmd! a-cmd options)                        
 ```
 
 ## License
