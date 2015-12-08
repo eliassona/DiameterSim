@@ -32,7 +32,7 @@
 (deftest test-header-bit
   (let [res-chan (chan)
         options (start! :transport :tcp, :res-chan res-chan, :print-fn (fn [_]))]
-    (dotimes [i 1]
+    (dotimes [i 100]
       (println (str "iteration: " i))
       
       (doseq [[flags res-code] [[#{:r} 2001], 
