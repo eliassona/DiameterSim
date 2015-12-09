@@ -1,6 +1,6 @@
-(ns diameter_sim.basetest
+(ns diameter.basetest
   (:require
-    [diameter_sim.codec :refer [dbg]]
+    [diameter.codec :refer [dbg]]
     [clojure.test :refer [deftest is run-tests]]))
 
 

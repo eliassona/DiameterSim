@@ -1,19 +1,19 @@
-(ns diameter_sim.codectest
-  (:require [diameter_sim.codec :refer [number->ba
-                                    ba->number
-                                    encode-cmd-flags
-                                    decode-cmd-flags
-                                    ip-address-ast->encoded ip-address->ast decode-ip
-                                    pad
-                                    encode-avp
-                                    decode-avp
-                                    decode-avps
-                                    encode-cmd
-                                    decode-cmd
-                                    def-cmd
-                                    def-avp
-                                    offset-range-of
-                                    calc-grouped-size]]
+(ns diameter.codectest
+  (:require [diameter.codec :refer [number->ba
+                                  ba->number
+                                  encode-cmd-flags
+                                  decode-cmd-flags
+                                  ip-address-ast->encoded ip-address->ast decode-ip
+                                  pad
+                                  encode-avp
+                                  decode-avp
+                                  decode-avps
+                                  encode-cmd
+                                  decode-cmd
+                                  def-cmd
+                                  def-avp
+                                  offset-range-of
+                                  calc-grouped-size]]
             [clojure.test :refer [deftest is run-tests]]))
 
 

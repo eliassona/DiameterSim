@@ -1,8 +1,6 @@
 # diameter-sim
 
-A Clojure library for testing the protocol Diameter.
-
-Note: UNDER CONSTRUCTION
+A Clojure library for testing the Diameter protocol.
 
 ## Usage
 
