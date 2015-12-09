@@ -7,6 +7,8 @@
   origin-host 264 :diameter-identity
   origin-realm 296 :diameter-identity
   host-ip 257 :address
+  supported-vendor-id 265 :unsigned32
+  vendor-specific-application-id 260 :grouped
   vendor-id 266 :unsigned32
   product-name 269 :utf-8-string
   result-code 268 :unsigned32
@@ -54,7 +56,7 @@
     (-> two-to-twenty rand int)))
 
 (defn cer-req-of [config]
-  (let [{:keys [hbh host realm]} config]
+  (let [{:keys [hbh host realm app]} config]
     {:cmd ce-def, :app 0, :hbh hbh, :e2e (create-e2e), :flags #{:r}
      :required-avps
           (into #{} (avps-of
@@ -113,6 +115,7 @@
   {:transport :tcp
    :host "localhost"
    :realm "cl"
+   :app 100
    :cer       #(cer-req-of %)
    :send-wdr  true
    :send-wda  true
@@ -126,9 +129,6 @@
   (and (cea? cmd) (= (:data (find-avp cmd :required-avps result-code-avp-id)) 2001)))
 
 
-(defn encode [req hbh options]
-  (byte-array (map byte (encode-cmd (req (assoc options :hbh hbh))))))
-
 (defn encode [cmd]
   (byte-array (map byte (encode-cmd cmd))))
 
@@ -137,8 +137,9 @@
   "Perform CER if cer fn is not nil"
   [raw-out-chan raw-in-chan {:keys [cer print-fn ignore-cea] :as opts}]
   (if cer
-    (do 
-	    (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
+    (let [cmd  (cer (assoc opts :hbh 0))]
+      (print-fn cmd)
+	    (>!! raw-out-chan (encode cmd))
 	    (let [cea (decode-cmd (<!! raw-in-chan) false)]
 	      (print-fn cea)
 	      (or (successful-cea? cea) ignore-cea)))

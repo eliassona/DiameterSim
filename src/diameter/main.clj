@@ -1,7 +1,11 @@
 (ns diameter.main
   (:require [diameter.codec :refer [def-cmd cmd-flag-map]]
             [diameter.base :refer [origin-realm-avp-id origin-host-avp-id
-                                   destination-host-avp-id auth-application-id-avp-id
+                                   destination-host-avp-id
+                                   destination-realm-avp-id
+                                   auth-application-id-avp-id
+                                   vendor-specific-application-id-avp-id
+                                   vendor-id-avp-id
                                    result-code-avp-id
                                    session-id-avp-id
                                    start!
@@ -9,7 +13,8 @@
                                    find-avp
                                    close-session!
                                    default-options
-                                   dp-req-of]]
+                                   dp-req-of
+                                   cer-req-of]]
             [clojure.core.async :refer [>!! chan <!!]]
             [clojure.test :refer [run-tests is deftest]]
    [diameter.transport :refer []]))
@@ -20,9 +25,11 @@
   {:cmd a-cmd-def, :app 100, :flags #{:r} 
        :required-avps #{{:code origin-realm-avp-id, :flags #{:m}, :data "cl"}
                         {:code origin-host-avp-id, :flags #{:m}, :data "localhost"}
-                        #_{:code destination-host-avp-id, :flags #{:m}, :data "dia2"}
+                        ;{:code destination-host-avp-id, :flags #{:m}, :data "dia1"}
+                        {:code destination-realm-avp-id, :flags #{:m}, :data "dr"}
                         {:code auth-application-id-avp-id, :flags #{:m}, :data 100}
-                        {:code session-id-avp-id, :flags #{}, :data "asdf"}}})
+                        ;{:code vendor-id-avp-id, :flags #{} :data 9008}
+                        #_{:code session-id-avp-id, :flags #{}, :data "asdf"}}})
 
 
 (defn answer-code [cmd]
@@ -34,7 +41,7 @@
 (deftest test-header-bit
   (let [res-chan (chan)
         options (start! :transport :tcp, :res-chan res-chan, :print-fn (fn [_]))]
-    (dotimes [i 1000]
+    (dotimes [i 1]
       (when (= (mod i 1000) 0)
         (println (str "iteration: " i)))
       
