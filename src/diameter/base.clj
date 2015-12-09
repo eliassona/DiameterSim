@@ -132,47 +132,57 @@
 (defn encode [cmd]
   (byte-array (map byte (encode-cmd cmd))))
 
+
+(defn handshake!
+  "Perform CER if cer fn is not nil"
+  [raw-out-chan raw-in-chan {:keys [cer print-fn ignore-cea] :as opts}]
+  (if cer
+    (do 
+	    (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
+	    (let [cea (decode-cmd (<!! raw-in-chan) false)]
+	      (print-fn cea)
+	      (or (successful-cea? cea) ignore-cea)))
+    true))
+  
+
 (defn start! [& options]
   (let [opts (merge (default-options) (apply hash-map options))
-        {:keys [req-chan res-chan send-wdr cer wdr print-fn]} opts
+        {:keys [req-chan res-chan send-wdr wdr print-fn]} opts
         {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
-    (>!! raw-out-chan (encode (cer (assoc opts :hbh 0))))
-    (let [cea (decode-cmd (<!! raw-in-chan) false)]
-      (print-fn cea)
-      (if (successful-cea? cea)
-        (do 
-          (print-fn "Diameter session started")
-          (go-loop
-            [hbh 1]
-            (let [[v c] (alts! [raw-in-chan req-chan])]
-              (if v 
-                (do
-                  (condp = c
-                    raw-in-chan 
-                    (let [dv (-> v (decode-cmd false))]
-                      (cond 
-                        (wdr? dv)
+    (if (handshake! raw-out-chan raw-in-chan opts)
+      (do 
+        (print-fn "Diameter session started")
+        (go-loop
+          [hbh 1]
+          (let [[v c] (alts! [raw-in-chan req-chan])]
+            (if v 
+              (do
+                (condp = c
+                  raw-in-chan 
+                  (let [dv (-> v (decode-cmd false))]
+                    (cond 
+                      (wdr? dv)
+                      (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                      (dpr? dv)
+                      (do 
                         (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                        (dpr? dv)
-                        (do 
-                          (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                          (close! req-chan))
-                        :else
-                        (do 
-                          (print-fn dv)
-                          (>! res-chan dv))
-                      ))
-                    req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
-                (recur (inc hbh)))
-                (do 
-                  (>! raw-out-chan :disconnect)
-                  (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh, :e2e (create-e2e))))
-                  (print-fn (decode-cmd (<!! raw-in-chan) false))
-                  (disconnect connection)
-                  )))))
-        (print-fn "Terminating, CEA not successful")))
-    (assoc opts :connection connection)
-    ))
+                        (close! req-chan))
+                      :else
+                      (do 
+                        (print-fn dv)
+                        (>! res-chan dv))
+                    ))
+                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
+              (recur (inc hbh)))
+              (do 
+                (>! raw-out-chan :disconnect)
+                (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh, :e2e (create-e2e))))
+                (print-fn (decode-cmd (<!! raw-in-chan) false))
+                (disconnect connection)
+                )))))
+      (print-fn "Terminating, CEA not successful"))
+  (assoc opts :connection connection)
+  ))
 
 
 (defn send-cmd! [cmd options]

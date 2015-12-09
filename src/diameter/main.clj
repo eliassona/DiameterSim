@@ -8,7 +8,8 @@
                                    send-cmd!
                                    find-avp
                                    close-session!
-                                   default-options]]
+                                   default-options
+                                   dp-req-of]]
             [clojure.core.async :refer [>!! chan <!!]]
             [clojure.test :refer [run-tests is deftest]]
    [diameter.transport :refer []]))
@@ -33,8 +34,9 @@
 (deftest test-header-bit
   (let [res-chan (chan)
         options (start! :transport :tcp, :res-chan res-chan, :print-fn (fn [_]))]
-    (dotimes [i 100]
-      (println (str "iteration: " i))
+    (dotimes [i 1000]
+      (when (= (mod i 1000) 0)
+        (println (str "iteration: " i)))
       
       (doseq [[flags res-code] [[#{:r} 2001], 
                                 [#{:r :e} 3008], 
