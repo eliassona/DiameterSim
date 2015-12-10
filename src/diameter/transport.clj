@@ -65,8 +65,8 @@
 (defn default-options []
   {:port 3869,
    :host "localhost"
-   :raw-in-chan (chan)
-   :raw-out-chan (chan)
+   :raw-in-chan (chan 1000)
+   :raw-out-chan (chan 1000)
    })
 
 
@@ -84,8 +84,13 @@
     (start-tcp! (Socket. host port) om)))
 
 (defmethod bind :tcp [options]
-  (let [om (merge (default-options) options)]
-    (start-tcp! (dbg (.accept (dbg (ServerSocket. (:port om))))) om)))
+  (let [om (merge (default-options) options)
+        {:keys [port print-fn]} om
+        ss (ServerSocket. port)]
+    (println (format "Binding server socket: %s" ss))
+    (let [s (.accept ss)]
+      (print-fn (format "Server socket accepted: %s" s))
+      (start-tcp! s om))))
 
 
 (defmethod disconnect :tcp [options]
