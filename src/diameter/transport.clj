@@ -4,7 +4,7 @@
                                    origin-host-avp-id ip-address-of]]
             [clojure.core.async :refer [chan go >! <! <!! >!! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
-           [java.io IOException OutputStream InputStream]))
+           [java.io IOException OutputStream InputStream BufferedInputStream BufferedOutputStream]))
 
 
 

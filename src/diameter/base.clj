@@ -182,20 +182,7 @@
                           (close! req-chan)))
                       (do 
                          (print-fn dv)
-                         (>! res-chan dv)))
-                          
-                    #_(cond 
-                       (wdr? dv)
-                       (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                       (dpr? dv)
-                       (do 
-                         (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                         (close! req-chan))
-                       :else
-                       (do 
-                         (print-fn dv)
-                         (>! res-chan dv))
-                    ))
+                         (>! res-chan dv))))
                   req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
               (recur (inc hbh)))
               (do 
