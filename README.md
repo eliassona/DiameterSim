@@ -9,7 +9,8 @@ Import the lib
 (use 'diameter.main)
 (in-ns 'diameter.main)
 ```
-Start a diameter server on 3869. Note, it currently blocks until the client connects, there for another repl must be started for the client.
+Start a diameter server on 3869. Note, it currently blocks until the client connects, there for another repl must be started for the client. This step is only needed if there is not a server already running.
+
 
 ```clojure
 => (def server (start! :transport :tcp, :kind :server, :port 3869))
