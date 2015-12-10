@@ -119,6 +119,7 @@
    :realm "cl"
    :app 100
    :cer       cer-req-of
+   :answer (fn [req options] (standard-answer-of req options))
    :send-wdr  true
    :send-wda  true
    :print-fn println
@@ -163,7 +164,7 @@
 
 (defn start! [& options]
   (let [opts (merge (default-options) (apply hash-map options))
-        {:keys [req-chan res-chan send-wdr wdr print-fn]} opts]
+        {:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts]
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
@@ -175,17 +176,26 @@
                 (condp = c
                   raw-in-chan 
                   (let [dv (-> v (decode-cmd false))]
-                    (cond 
-                      (wdr? dv)
-                      (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                      (dpr? dv)
+                    (if (request? dv)
                       (do 
-                        (>! raw-out-chan (encode (standard-answer-of dv opts)))
-                        (close! req-chan))
-                      :else
+                        (>! raw-out-chan (encode (answer dv opts)))
+                        (when (dpr? dv)
+                          (close! req-chan)))
                       (do 
-                        (print-fn dv)
-                        (>! res-chan dv))
+                         (print-fn dv)
+                         (>! res-chan dv)))
+                          
+                    #_(cond 
+                       (wdr? dv)
+                       (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                       (dpr? dv)
+                       (do 
+                         (>! raw-out-chan (encode (standard-answer-of dv opts)))
+                         (close! req-chan))
+                       :else
+                       (do 
+                         (print-fn dv)
+                         (>! res-chan dv))
                     ))
                   req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
               (recur (inc hbh)))
