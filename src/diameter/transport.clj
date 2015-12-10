@@ -85,7 +85,7 @@
 
 (defmethod bind :tcp [options]
   (let [om (merge (default-options) options)]
-    (start-tcp! (.accept (ServerSocket. (:port om))) om)))
+    (start-tcp! (dbg (.accept (dbg (ServerSocket. (:port om))))) om)))
 
 
 (defmethod disconnect :tcp [options]
