@@ -80,8 +80,10 @@
 
 (defmethod connect :tcp [options]
   (let [om (merge (default-options) options)
-        {:keys [host port]} om]
-    (start-tcp! (Socket. host port) om)))
+        {:keys [print-fn host port]} om
+        s (Socket. host port)]
+    (print-fn (format "Socket connection: %s" s))
+    (start-tcp! s om)))
 
 (defmethod bind :tcp [options]
   (let [om (merge (default-options) options)

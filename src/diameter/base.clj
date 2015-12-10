@@ -123,7 +123,7 @@
    :send-wda  true
    :print-fn println
    :wdr       wd-req-of
-   :req-chan  (chan)
+   :req-chan  (chan 1000)
    :res-chan  (slide-chan)}
   )
 
@@ -156,9 +156,7 @@
         cer (decode-cmd (<!! raw-in-chan) false)]
       (print-fn cer)
       (>!! raw-out-chan (encode (cer-ans-of cer opts)))
-      connection
-    )
-  )
+      connection))
  
 
 
@@ -199,8 +197,7 @@
                 ))))
         (assoc opts :connection connection)
         )
-      (print-fn "Terminating, conenection not successful"))
-  ))
+      (print-fn "Terminating, conenection not successful"))))
 
 
 (defn send-cmd! [cmd options]
