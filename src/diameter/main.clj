@@ -1,4 +1,5 @@
 (ns diameter.main
+  (:use [clojure.pprint])
   (:require [diameter.codec :refer [def-cmd cmd-flag-map]]
             [diameter.base :refer [origin-realm-avp-id origin-host-avp-id
                                    destination-host-avp-id

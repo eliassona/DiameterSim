@@ -118,12 +118,10 @@
    :host "localhost"
    :realm "cl"
    :app 100
-   :cer       cer-req-of
+   :cer cer-req-of
    :answer (fn [req options] (standard-answer-of req options))
-   :send-wdr  true
-   :send-wda  true
    :print-fn println
-   :wdr       wd-req-of
+   :wdr wd-req-of
    :req-chan  (chan 1000)
    :res-chan  (slide-chan)}
   )
@@ -177,8 +175,9 @@
                   raw-in-chan 
                   (let [dv (-> v (decode-cmd false))]
                     (if (request? dv)
-                      (do 
-                        (>! raw-out-chan (encode (answer dv opts)))
+                      (do
+                        (when-let [a (answer dv opts)] 
+                          (>! raw-out-chan (encode a)))
                         (when (dpr? dv)
                           (close! req-chan)))
                       (do 
