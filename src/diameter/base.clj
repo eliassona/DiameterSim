@@ -33,6 +33,7 @@
 (def-cmd dp 282 0 0)                                        ;Disconnect
 
 (defmulti connect :transport)
+(defmulti bind :transport)
 (defmulti disconnect :transport)
 (defmulti ip-address-of :transport)
 
@@ -113,14 +114,15 @@
 
 (defn default-options []
   {:transport :tcp
+   :kind :client
    :host "localhost"
    :realm "cl"
    :app 100
-   :cer       #(cer-req-of %)
+   :cer       cer-req-of
    :send-wdr  true
    :send-wda  true
    :print-fn println
-   :wdr       #(wd-req-of %)
+   :wdr       wd-req-of
    :req-chan  (chan)
    :res-chan  (slide-chan)}
   )
@@ -132,10 +134,11 @@
 (defn encode [cmd]
   (byte-array (map byte (encode-cmd cmd))))
 
+(defmulti handshake! (fn [options raw-out-chan raw-in-chan] (:kind options)))
 
-(defn handshake!
-  "Perform CER if cer fn is not nil"
-  [raw-out-chan raw-in-chan {:keys [cer print-fn ignore-cea] :as opts}]
+
+(defmethod handshake! :client 
+  [{:keys [cer print-fn ignore-cea] :as opts} raw-out-chan raw-in-chan]
   (if cer
     (let [cmd  (cer (assoc opts :hbh 0))]
       (print-fn cmd)
@@ -145,12 +148,17 @@
 	      (or (successful-cea? cea) ignore-cea)))
     true))
   
+;(defmethod handshake! :client 
+;  [{:keys [cer print-fn ignore-cea] :as opts} raw-out-chan raw-in-chan]
+
+
+
 
 (defn start! [& options]
   (let [opts (merge (default-options) (apply hash-map options))
         {:keys [req-chan res-chan send-wdr wdr print-fn]} opts
         {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
-    (if (handshake! raw-out-chan raw-in-chan opts)
+    (if (handshake! opts raw-out-chan raw-in-chan)
       (do 
         (print-fn "Diameter session started")
         (go-loop
