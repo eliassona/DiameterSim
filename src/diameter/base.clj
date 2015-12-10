@@ -134,19 +134,21 @@
 (defn encode [cmd]
   (byte-array (map byte (encode-cmd cmd))))
 
-(defmulti handshake! (fn [options raw-out-chan raw-in-chan] (:kind options)))
+(defmulti handshake! :kind)
 
 
-(defmethod handshake! :client 
-  [{:keys [cer print-fn ignore-cea] :as opts} raw-out-chan raw-in-chan]
-  (if cer
-    (let [cmd  (cer (assoc opts :hbh 0))]
-      (print-fn cmd)
-	    (>!! raw-out-chan (encode cmd))
-	    (let [cea (decode-cmd (<!! raw-in-chan) false)]
-	      (print-fn cea)
-	      (or (successful-cea? cea) ignore-cea)))
-    true))
+(defmethod handshake! :client [opts]
+  (let [{:keys [cer print-fn ignore-cea]} opts
+        {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
+    (if cer
+      (let [cmd  (cer (assoc opts :hbh 0))]
+        (print-fn cmd)
+	      (>!! raw-out-chan (encode cmd))
+	      (let [cea (decode-cmd (<!! raw-in-chan) false)]
+	        (print-fn cea)
+	        (when (or (successful-cea? cea) ignore-cea)
+           connection)))
+      connection)))
   
 ;(defmethod handshake! :client 
 ;  [{:keys [cer print-fn ignore-cea] :as opts} raw-out-chan raw-in-chan]
@@ -156,9 +158,8 @@
 
 (defn start! [& options]
   (let [opts (merge (default-options) (apply hash-map options))
-        {:keys [req-chan res-chan send-wdr wdr print-fn]} opts
-        {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
-    (if (handshake! opts raw-out-chan raw-in-chan)
+        {:keys [req-chan res-chan send-wdr wdr print-fn]} opts]
+    (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
         (go-loop
@@ -188,9 +189,10 @@
                 (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh, :e2e (create-e2e))))
                 (print-fn (decode-cmd (<!! raw-in-chan) false))
                 (disconnect connection)
-                )))))
-      (print-fn "Terminating, CEA not successful"))
-  (assoc opts :connection connection)
+                ))))
+        (assoc opts :connection connection)
+        )
+      (print-fn "Terminating, conenection not successful"))
   ))
 
 
