@@ -150,9 +150,16 @@
            connection)))
       connection)))
   
-;(defmethod handshake! :client 
-;  [{:keys [cer print-fn ignore-cea] :as opts} raw-out-chan raw-in-chan]
-
+(defmethod handshake! :server [opts]
+  (let [{:keys [print-fn]} opts
+        {:keys [raw-in-chan raw-out-chan] :as connection} (bind opts)
+        cer (decode-cmd (<!! raw-in-chan) false)]
+      (print-fn cer)
+      (>!! raw-out-chan (encode (cer-ans-of cer opts)))
+      connection
+    )
+  )
+ 
 
 
 

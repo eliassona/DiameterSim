@@ -1,6 +1,6 @@
 (ns diameter.transport
   (:require [diameter.codec :refer [Decode decode-cmd encode-cmd dbg ba->number]]
-            [diameter.base :refer [connect disconnect slide-chan avp-of
+            [diameter.base :refer [connect disconnect bind slide-chan avp-of
                                    origin-host-avp-id ip-address-of]]
             [clojure.core.async :refer [chan go >! <! <!! >!! go-loop alts! timeout onto-chan pipeline close! thread dropping-buffer]])
   (:import [java.net InetAddress ConnectException Socket ServerSocket SocketException]
@@ -73,13 +73,19 @@
 (defmethod ip-address-of :tcp [config] (.getHostAddress (InetAddress/getByName (:host config))))
 
 
+(defn start-tcp! [s {:keys [raw-in-chan raw-out-chan] :as om}]
+  (write-loop s raw-out-chan)
+  (read-loop s  raw-in-chan)
+  (assoc om :socket s))
+
 (defmethod connect :tcp [options]
   (let [om (merge (default-options) options)
-        {:keys [host port raw-in-chan raw-out-chan]} om
-        s (Socket. host port)]
-    (write-loop s raw-out-chan)
-    (read-loop s  raw-in-chan)
-    (assoc om :socket s)))
+        {:keys [host port]} om]
+    (start-tcp! (Socket. host port) om)))
+
+(defmethod bind :tcp [options]
+  (let [om (merge (default-options) options)]
+    (start-tcp! (.accept (ServerSocket. (:port om))) om)))
 
 
 (defmethod disconnect :tcp [options]
