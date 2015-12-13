@@ -161,7 +161,8 @@
 
 
 (defn start! [& options]
-  (let [opts (merge (default-options) (apply hash-map options))
+  (let [outstanding-reqs (atom {})
+        opts (merge (default-options) (apply hash-map options) (map-of outstanding-reqs))
         {:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts]
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
@@ -170,7 +171,7 @@
           [hbh 1]
           (let [[v c] (alts! [raw-in-chan req-chan])]
             (if v 
-              (do
+              (do 
                 (condp = c
                   raw-in-chan 
                   (let [dv (-> v (decode-cmd false))]
@@ -182,12 +183,16 @@
                           (close! req-chan)))
                       (do 
                          (print-fn dv)
-                         (>! res-chan dv))))
-                  req-chan (>! raw-out-chan (encode (assoc v :hbh hbh, :e2e (create-e2e)))))
-              (recur (inc hbh)))
+                         (>! res-chan dv)))
+                    )
+                  req-chan 
+                  (do
+                    (>! raw-out-chan (encode (assoc v :hbh hbh)))
+                    ))
+                (recur (inc hbh)))
               (do 
                 (>! raw-out-chan :disconnect)
-                (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh, :e2e (create-e2e))))
+                (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh)))
                 (print-fn (decode-cmd (<!! raw-in-chan) false))
                 (disconnect connection)
                 ))))
@@ -197,7 +202,7 @@
 
 
 (defn send-cmd! [cmd options]
-  (>!! (:req-chan options) cmd))
+  (>!! (:req-chan options) (assoc cmd :e2e (create-e2e))))
 
 (defn close-session! [options]
   (close! (:req-chan options)))
