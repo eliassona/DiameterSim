@@ -5,6 +5,9 @@
   (:import [java.util List])
   )
 
+;(System/setProperty "java.util.logging.config.file" "Users/anderse/logging.properties")
+
+
 
 (defmacro dbg[x] `(let [x# ~x] (println '~x "=" x#) x#))
 (defmacro map-of [& args] (apply hash-map (mapcat (fn [arg] [(keyword arg) arg])  args)))
@@ -299,6 +302,7 @@
   ([ba include-len indexes filter-fn]
     (into [] (comp (map (fn [ofs] (decode-avp ba ofs include-len filter-fn))) (filter identity)) indexes)))   
 
+(defn proxiable? [cmd] (-> cmd :flags (contains? :p)))
 (defn request? [cmd] (-> cmd :flags (contains? :r)))
 (defn answer? [cmd] (not (request? cmd)))
 

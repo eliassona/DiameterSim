@@ -1,6 +1,7 @@
 (ns diameter.base
-  (:require [diameter.codec :refer [def-avp def-cmd encode-cmd map-of decode-cmd request? answer? dbg]]
-            [clojure.core.async :refer [chan go >! <! >!! <!! go-loop alts! timeout onto-chan pipeline close! sliding-buffer]]))
+  (:require [diameter.codec :refer [def-avp def-cmd encode-cmd map-of decode-cmd request? answer? proxiable? dbg]]
+            [clojure.core.async :refer [chan go >! <! >!! <!! go-loop alts! timeout onto-chan pipeline close! sliding-buffer]]
+            [clojure.tools.logging :as log]))
 
 (def-avp
   session-id 263 :utf-8-string

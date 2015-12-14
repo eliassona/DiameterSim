@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.374"]
                  [instaparse "1.4.1"]
-                 [defun "0.1.0"]]
+                 [defun "0.1.0"]
+                 [org.clojure/tools.logging "0.3.1"]]
   :profiles {:dev {:repositories {"project" "file:maven_repository"}
                    :dependencies [[local/sctp "1.0.0"]
                                   [org.clojure/tools.trace "0.7.5"]
