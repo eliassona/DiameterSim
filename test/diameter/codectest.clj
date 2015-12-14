@@ -38,6 +38,7 @@
   (ba-number-roundtrip 1 1)
   (ba-number-roundtrip 255 1)
   (ba-number-roundtrip 256 2)
+  (ba-number-roundtrip 0xffffffff 4)
   )
 
 (deftest verify-encode-flags
@@ -152,7 +153,7 @@
                        :required-avps #{{:code my-grouped-avp1-avp-id, :flags #{} :data [{:code my-grouped-avp1-avp-id, :flags #{} :data [{:code my-avp1-avp-id :flags #{} :data 1}]}]}}
                        :fixed-avps [{:code my-avp2-avp-id, :flags #{} :data "test"}]})
   ;group in group in group
-  (encode-cmd-roundtrip {:version 1, :cmd my-cmd2-def, :app 100, :hbh 0, :e2e 1, :flags #{} 
+  (encode-cmd-roundtrip {:version 1, :cmd my-cmd2-def, :app 100, :hbh 0, :e2e 0xffffffff, :flags #{} 
                        :required-avps #{{:code my-grouped-avp1-avp-id, :flags #{} 
                                          :data [{:code my-grouped-avp1-avp-id, :flags #{} 
                                                  :data [{:code my-grouped-avp1-avp-id :flags #{:m} :data [{:code my-avp2-avp-id :flags #{:m} :data "hej"}]}]}]}}

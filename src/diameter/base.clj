@@ -51,10 +51,12 @@
 
 (def ^:const two-to-twenty (java.lang.Math/pow 2 20))
 
+(def ^:const  current-start-time (bit-shift-left (bit-and (System/currentTimeMillis) 0xfff) 20))
+
+(def e2e-value (atom current-start-time))
+
 (defn create-e2e []
-  (bit-or
-    (bit-shift-left (System/currentTimeMillis) 20)
-    (-> two-to-twenty rand int)))
+  (swap! e2e-value inc))
 
 (defn cer-req-of [config]
   (let [{:keys [hbh host realm app]} config]
@@ -157,8 +159,55 @@
       (>!! raw-out-chan (encode (cer-ans-of cer opts)))
       connection))
  
+(defn update-outstanding-reqs! [req outstanding-reqs]
+  (swap! outstanding-reqs assoc (:e2e req) {:request req, :time (System/currentTimeMillis)}))
 
+(defn match-with-req! [ans outstanding-reqs]
+  (let [mr (atom nil)
+        e2e (:e2e ans)]
+    (swap! 
+      outstanding-reqs 
+      (fn [m] 
+        (reset! mr (m e2e))
+        (dissoc m e2e)))
+    @mr))
+  
 
+(defn main-loop! [opts connection outstanding-reqs]
+  (let [{:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts
+        {:keys [raw-in-chan raw-out-chan]} connection]
+    (go-loop
+      [hbh 1]
+      (let [[v c] (alts! [raw-in-chan req-chan])]
+        (if v 
+          (do 
+            (condp = c
+              raw-in-chan 
+              (let [dv (-> v (decode-cmd false))]
+                (if (request? dv)
+                  (do
+                    (print-fn dv)
+                    (when-let [a (answer dv opts)] 
+                      (>! raw-out-chan (encode a)))
+                    (when (dpr? dv)
+                      (close! req-chan)))
+                  (if-let [mr (match-with-req! dv outstanding-reqs)] 
+                     (>! res-chan mr)
+                     (print-fn (format "Could not find matching request for %s" dv))))
+                )
+              req-chan 
+              (if (request? v)
+                (do 
+                  (update-outstanding-reqs! v outstanding-reqs)
+                  (>! raw-out-chan (encode (assoc v :hbh hbh))))
+                (>! raw-out-chan (encode v))
+                ))
+            (recur (inc hbh)))
+          (do 
+            (>! raw-out-chan :disconnect)
+            (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh)))
+            (print-fn (decode-cmd (<!! raw-in-chan) false))
+            (disconnect connection)))))))
 
 (defn start! [& options]
   (let [outstanding-reqs (atom {})
@@ -167,35 +216,7 @@
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
-        (go-loop
-          [hbh 1]
-          (let [[v c] (alts! [raw-in-chan req-chan])]
-            (if v 
-              (do 
-                (condp = c
-                  raw-in-chan 
-                  (let [dv (-> v (decode-cmd false))]
-                    (if (request? dv)
-                      (do
-                        (when-let [a (answer dv opts)] 
-                          (>! raw-out-chan (encode a)))
-                        (when (dpr? dv)
-                          (close! req-chan)))
-                      (do 
-                         (print-fn dv)
-                         (>! res-chan dv)))
-                    )
-                  req-chan 
-                  (do
-                    (>! raw-out-chan (encode (assoc v :hbh hbh)))
-                    ))
-                (recur (inc hbh)))
-              (do 
-                (>! raw-out-chan :disconnect)
-                (>! raw-out-chan (encode (assoc (dp-req-of opts) :hbh hbh)))
-                (print-fn (decode-cmd (<!! raw-in-chan) false))
-                (disconnect connection)
-                ))))
+        (main-loop! opts connection outstanding-reqs)
         (assoc opts :connection connection)
         )
       (print-fn "Terminating, conenection not successful"))))
@@ -226,4 +247,6 @@
        (recur true)))
      (map-of raw-in-chan raw-out-chan)))
      
+
+
 
