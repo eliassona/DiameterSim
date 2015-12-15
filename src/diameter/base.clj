@@ -115,6 +115,18 @@
 (def ^:const to-lower-case #(.toLowerCase #^String %))
 
 
+(defn local-loop! [opts]
+  (let [{:keys [local-chan answer req-chan print-fn]} opts]
+    (go-loop 
+      []
+      (let [cmd (<! local-chan)]
+        (print-fn (format "Local: %s" cmd))
+        (if (request? cmd)
+          (>! req-chan (answer cmd opts))
+          (print-fn "answer")
+        ))
+      (recur))))
+
 (defn default-options []
   {:transport :tcp
    :kind :client
@@ -126,7 +138,19 @@
    :print-fn println
    :wdr wd-req-of
    :req-chan  (chan 1000)
-   :res-chan  (slide-chan)}
+   :res-chan (chan)
+   :local-chan (chan) ;a cmd is pushed to this channel if the routing loop decides it should be processed locally
+   :local-loop-fn local-loop! ;function that implements the local logic, shoule be a loop
+   :peer-table {}
+   :route-table {}
+   }
+  )
+
+(comment
+  ;peer-table example 
+  {"p1" (assoc (default-options) :port 3870)}
+  ;route-table example
+  {"r1" {:hosts ["h1" "h2"]}}
   )
 
 (defn successful-cea? [cmd]
@@ -173,6 +197,34 @@
         (dissoc m e2e)))
     @mr))
   
+(defn host->chan [host peer-table]
+  (:req-chan (peer-table host)))
+
+(defn route-loop! [opts]
+  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table]} opts]
+    (go-loop 
+      []
+      (let [{:keys [req cmd]} (<! res-chan)]
+        (if (proxiable? cmd)
+          (if-let [dest-host (:data (find-avp req :required-avps destination-host-avp-id))]
+            (if (= dest-host host)
+              (>! local-chan cmd)
+              (if-let [c (host->chan dest-host peer-table)]
+                (>! c cmd)
+                (print-fn (format "%s does not exist in peer-table" dest-host)))
+              )
+            (if-let [dest-realm (:data (find-avp req :required-avps destination-realm-avp-id))]
+              (if (= dest-realm realm)
+                (>! local-chan cmd)
+                (println "realm routing not implemented yet")
+                )
+            ))
+          (>! local-chan cmd)
+        )
+      (recur)))))
+
+
+
 
 (defn main-loop! [opts connection outstanding-reqs]
   (let [{:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts
@@ -186,23 +238,16 @@
               raw-in-chan 
               (let [dv (-> v (decode-cmd false))]
                 (if (request? dv)
-                  (do
-                    (print-fn dv)
-                    (when-let [a (answer dv opts)] 
-                      (>! raw-out-chan (encode a)))
-                    (when (dpr? dv)
-                      (close! req-chan)))
+                  (>! res-chan {:req dv, :cmd dv})
                   (if-let [mr (match-with-req! dv outstanding-reqs)] 
-                     (>! res-chan mr)
-                     (print-fn (format "Could not find matching request for %s" dv))))
-                )
+                     (>! res-chan {:req mr, :cmd dv})
+                     (print-fn (format "Could not find matching request for %s" dv)))))
               req-chan 
               (if (request? v)
                 (do 
                   (update-outstanding-reqs! v outstanding-reqs)
                   (>! raw-out-chan (encode (assoc v :hbh hbh))))
-                (>! raw-out-chan (encode v))
-                ))
+                (>! raw-out-chan (encode v))))
             (recur (inc hbh)))
           (do 
             (>! raw-out-chan :disconnect)
@@ -213,11 +258,13 @@
 (defn start! [& options]
   (let [outstanding-reqs (atom {})
         opts (merge (default-options) (apply hash-map options) (map-of outstanding-reqs))
-        {:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts]
+        {:keys [req-chan res-chan send-wdr wdr print-fn answer local-loop-fn]} opts]
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
         (main-loop! opts connection outstanding-reqs)
+        (route-loop! opts)
+        (local-loop-fn opts)
         (assoc opts :connection connection)
         )
       (print-fn "Terminating, conenection not successful"))))
