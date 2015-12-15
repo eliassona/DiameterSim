@@ -1,6 +1,7 @@
 (ns diameter.base
   (:require [diameter.codec :refer [def-avp def-cmd encode-cmd map-of decode-cmd request? answer? proxiable? dbg]]
             [clojure.core.async :refer [chan go >! <! >!! <!! go-loop alts! timeout onto-chan pipeline close! sliding-buffer]]
+            [clojure.core.async :as async]
             [clojure.tools.logging :as log]))
 
 (def-avp
@@ -200,11 +201,17 @@
 (defn host->chan [host peer-table]
   (:req-chan (peer-table host)))
 
+
+(defn opts->res-chans [opts]
+  (mapv identity (conj (map :res-chan (vals (dbg (:peer-table opts)))) (:res-chan opts)))
+  )
+
 (defn route-loop! [opts]
-  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table]} opts]
+  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table]} opts
+        m-chan (dbg (async/merge (dbg (opts->res-chans opts))))]
     (go-loop 
       []
-      (let [{:keys [req cmd]} (<! res-chan)]
+      (let [{:keys [req cmd]} (<! m-chan)]
         (if (proxiable? cmd)
           (if-let [dest-host (:data (find-avp req :required-avps destination-host-avp-id))]
             (if (= dest-host host)
