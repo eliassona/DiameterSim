@@ -144,6 +144,8 @@
    :local-loop-fn local-loop! ;function that implements the local logic, shoule be a loop
    :peer-table {}
    :route-table {}
+   :route-fn identity
+   :realm-strategy-fn first ;take the first host in for a realm
    }
   )
 
@@ -151,7 +153,7 @@
   ;peer-table example 
   {"p1" (assoc (default-options) :port 3870)}
   ;route-table example
-  {"r1" {:hosts ["h1" "h2"]}}
+  {"r1" {100 {:hosts ["h1" "h2"]}}}
   )
 
 (defn successful-cea? [cmd]
@@ -207,11 +209,11 @@
   )
 
 (defn route-loop! [opts]
-  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table]} opts
-        m-chan (dbg (async/merge (dbg (opts->res-chans opts))))]
+  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table route-fn realm-strategy-fn]} opts
+        m-chan (async/merge (opts->res-chans opts))]
     (go-loop 
       []
-      (let [{:keys [req cmd]} (<! m-chan)]
+      (let [{:keys [req cmd]} (route-fn (<! m-chan))]
         (if (proxiable? cmd)
           (if-let [dest-host (:data (find-avp req :required-avps destination-host-avp-id))]
             (if (= dest-host host)
@@ -223,9 +225,9 @@
             (if-let [dest-realm (:data (find-avp req :required-avps destination-realm-avp-id))]
               (if (= dest-realm realm)
                 (>! local-chan cmd)
-                (println "realm routing not implemented yet")
-                )
-            ))
+                (if-let [c (-> ((route-table dest-realm) (:app cmd)) :hosts realm-strategy-fn (host->chan peer-table))]
+                  (>! c cmd)
+                  (println (format "Couldn't find route for realm %s" dest-realm))))))
           (>! local-chan cmd)
         )
       (recur)))))
