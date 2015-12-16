@@ -156,9 +156,7 @@
   {"r1" {100 {:hosts ["h1" "h2"]}}}
   )
 
-(defn successful-cea? [cmd]
-  (and (cea? cmd) (= (:data (find-avp cmd :required-avps result-code-avp-id)) 2001)))
-
+(defn successful-cea? [cmd] (avp-of cmd result-code-avp-id))
 
 (defn encode [cmd]
   (byte-array (map byte (encode-cmd cmd))))
@@ -215,14 +213,14 @@
       []
       (let [{:keys [req cmd]} (route-fn (<! m-chan))]
         (if (proxiable? cmd)
-          (if-let [dest-host (:data (find-avp req :required-avps destination-host-avp-id))]
+          (if-let [dest-host (avp-of req destination-host-avp-id)]
             (if (= dest-host host)
               (>! local-chan cmd)
               (if-let [c (host->chan dest-host peer-table)]
                 (>! c cmd)
                 (print-fn (format "%s does not exist in peer-table" dest-host)))
               )
-            (if-let [dest-realm (:data (find-avp req :required-avps destination-realm-avp-id))]
+            (if-let [dest-realm (avp-of req destination-realm-avp-id)]
               (if (= dest-realm realm)
                 (>! local-chan cmd)
                 (if-let [c (-> ((route-table dest-realm) (:app cmd)) :hosts realm-strategy-fn (host->chan peer-table))]
