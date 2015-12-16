@@ -291,7 +291,7 @@
          raw-out-chan (chan)]
      (go-loop 
        [connected false]
-       (let [req (-> (<! raw-out-chan) (decode-cmd false))]
+       (let [req (-> (<! raw-out-chan) vec (decode-cmd false))]
          (>! raw-in-chan 
            (encode-cmd 
              (if (not connected)
