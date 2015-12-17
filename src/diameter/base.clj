@@ -121,7 +121,7 @@
     (go-loop 
       []
       (let [cmd (<! local-chan)]
-        (print-fn (format "Local: %s" cmd))
+        (print-fn (assoc cmd :dest :local))
         (if (request? cmd)
           (>! req-chan (answer cmd opts))
           (print-fn "answer")
@@ -186,7 +186,7 @@
       connection))
  
 (defn update-outstanding-reqs! [req outstanding-reqs]
-  (swap! outstanding-reqs assoc (:e2e req) {:request req, :time (System/currentTimeMillis)}))
+  (swap! outstanding-reqs assoc (:e2e req) {:req req, :time (System/currentTimeMillis)}))
 
 (defn match-with-req! [ans outstanding-reqs]
   (let [mr (atom nil)
@@ -203,7 +203,7 @@
 
 
 (defn opts->res-chans [opts]
-  (mapv identity (conj (map :res-chan (vals (dbg (:peer-table opts)))) (:res-chan opts)))
+  (mapv identity (conj (map :res-chan (vals (:peer-table opts))) (:res-chan opts)))
   )
 
 (defn route-loop! [opts]
@@ -212,6 +212,8 @@
     (go-loop 
       []
       (let [{:keys [req cmd]} (route-fn (<! m-chan))]
+        (print-fn req)
+        (print-fn cmd)
         (if (proxiable? cmd)
           (if-let [dest-host (avp-of req destination-host-avp-id)]
             (if (= dest-host host)
@@ -247,7 +249,7 @@
                 (if (request? dv)
                   (>! res-chan {:req dv, :cmd dv})
                   (if-let [mr (match-with-req! dv outstanding-reqs)] 
-                     (>! res-chan {:req mr, :cmd dv})
+                     (>! res-chan {:req (:req mr), :cmd dv})
                      (print-fn (format "Could not find matching request for %s" dv)))))
               req-chan 
               (if (request? v)
