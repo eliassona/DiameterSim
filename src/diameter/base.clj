@@ -105,9 +105,9 @@
 
 
 (defn standard-answer-of [cmd config]
-  (let [{:keys [hbh e2e cmd app]} cmd
+  (let [{:keys [hbh e2e cmd app flags]} cmd
         {:keys [host realm]} config]
-    {:cmd cmd, :app app, :hbh hbh, :e2e e2e, :flags #{}
+    {:cmd cmd, :app app, :hbh hbh, :e2e e2e, :flags (disj flags :r)
      :required-avps
           (into #{} (avps-of [origin-host-avp-id host] [origin-realm-avp-id realm] [result-code-avp-id 2001]))}))
 

@@ -44,18 +44,50 @@
                         ;{:code vendor-id-avp-id, :flags #{} :data 9008}
                         #_{:code session-id-avp-id, :flags #{}, :data "asdf"}}})
 
+(defn do-cer [print-chan]
+  (<!! print-chan)
+  (<!! print-chan)
+  (<!! print-chan))
+
 
 (deftest verify-local-dest-host
   (let [print-chan (chan)
         print-fn #(put! print-chan %)
         client (start! :transport :local, :print-fn print-fn)]
-    (<!! print-chan)
-    (<!! print-chan)
-    (<!! print-chan)
+    (do-cer print-chan)
     (send-cmd! (update a-cmd :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "localhost"})) client)
     (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
     (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
     (is (= {:cmd 11, :flags #{}, :dest :local} (-> print-chan <!! (select-keys [:cmd :flags :dest])))) ;local processing
     (is (= "answer" (<!! print-chan)))
+    
+    ))
+
+
+(deftest verify-non-existing-dest-host-non-proxiable
+  (let [print-chan (chan)
+        print-fn #(put! print-chan %)
+        client (start! :transport :local, :print-fn print-fn)]
+    (do-cer print-chan)
+    (send-cmd! (update a-cmd :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "unknown"})) client)
+    (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= {:cmd 11, :flags #{}, :dest :local} (-> print-chan <!! (select-keys [:cmd :flags :dest])))) ;local processing
+    (is (= "answer" (<!! print-chan)))
+    
+    ))
+
+(deftest verify-non-existing-dest-host-proxiable
+  (let [print-chan (chan)
+        print-fn #(put! print-chan %)
+        client (start! :transport :local, :print-fn print-fn)]
+    (do-cer print-chan)
+    (send-cmd! (-> a-cmd 
+                 (update :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "unknown"}))
+                 (update :flags conj :p)) client)
+    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:p}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= "unknown does not exist in peer-table" (-> print-chan <!!))) ;local processing
+    ;(is (= "answer" (<!! print-chan)))
     
     ))
