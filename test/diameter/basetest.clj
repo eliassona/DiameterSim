@@ -53,7 +53,9 @@
     (<!! print-chan)
     (<!! print-chan)
     (send-cmd! (update a-cmd :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "localhost"})) client)
-;    (println (<!! print-chan))
-    (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags]))))
-    (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))
+    (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= {:cmd 11, :flags #{}, :dest :local} (-> print-chan <!! (select-keys [:cmd :flags :dest])))) ;local processing
+    (is (= "answer" (<!! print-chan)))
+    
     ))
