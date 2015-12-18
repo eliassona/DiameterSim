@@ -1,23 +1,10 @@
 (ns diameter.basetest
   (:require
     [clojure.core.async :refer [chan >! <! >!! <!! put!]]
-    [diameter.codec :refer [def-cmd dbg]]
-    [diameter.base :refer [origin-realm-avp-id origin-host-avp-id
-                                   destination-host-avp-id
-                                   destination-realm-avp-id
-                                   auth-application-id-avp-id
-                                   vendor-specific-application-id-avp-id
-                                   vendor-id-avp-id
-                                   result-code-avp-id
-                                   session-id-avp-id
-                                   start!
-                                   send-cmd!
-                                   find-avp
-                                   close-session!
-                                   default-options
-                                   dp-req-of
-                                   cer-req-of]]
-    [clojure.test :refer [deftest is run-tests]]))
+    [diameter.codec :refer [def-cmd dbg encode-cmd prettyfy]]
+    [clojure.test :refer [deftest is run-tests]])
+  (:use [diameter.base]
+    ))
 
 
 
@@ -88,6 +75,28 @@
     (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
     (is (= {:cmd 11, :flags #{:p}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
     (is (= "unknown does not exist in peer-table" (-> print-chan <!!))) ;local processing
-    ;(is (= "answer" (<!! print-chan)))
-    
+    ))
+
+
+(defn send-raw-cmd! [cmd opts]
+  (let [c (-> opts :connection :raw-in-chan)]
+    (>!! c (encode-cmd (assoc cmd :e2e (create-e2e), :hbh 10)))))
+
+(deftest verify-existing-remote-dest-host
+  (let [print-chan (chan)
+        print-fn #(put! print-chan %)
+        dest-print-chan (chan)
+        dest-print-fn #(put! dest-print-chan %)
+        client (start! :transport :local, :print-fn print-fn, :peer-table {"dia1", (assoc (default-options) :host "dia1", :print-fn dest-print-fn, :transport :local)})]
+    (do-cer print-chan)
+    (send-raw-cmd! (-> a-cmd 
+                     (update :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "dia1"}))
+                     (update :flags conj :p)) client)
+    (do-cer dest-print-chan)
+    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the answer
+    (println (<!! dest-print-chan))
+    (println (<!! dest-print-chan))
     ))
