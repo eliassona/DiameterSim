@@ -121,7 +121,7 @@
     (go-loop 
       []
       (let [cmd (<! local-chan)]
-        (print-fn (assoc cmd :dest :local))
+        (print-fn (assoc cmd :location :local))
         (if (request? cmd)
           (>! req-chan (answer cmd opts))
           (print-fn "answer")
@@ -264,6 +264,12 @@
             (print-fn (decode-cmd (<!! raw-in-chan) false))
             (disconnect connection)))))))
 
+(declare start!)
+
+(defn start-peers! [peers]
+  (doseq [p peers]
+    (apply start! (mapcat identity p))))
+
 (defn start! [& options]
   (let [outstanding-reqs (atom {})
         opts (merge (default-options) (apply hash-map options) (map-of outstanding-reqs))
@@ -274,6 +280,7 @@
         (main-loop! opts connection outstanding-reqs)
         (route-loop! opts)
         (local-loop-fn opts)
+        (start-peers! (-> opts :peer-table vals))
         (assoc opts :connection connection)
         )
       (print-fn "Terminating, conenection not successful"))))
@@ -281,6 +288,8 @@
 
 (defn send-cmd! [cmd options]
   (>!! (:req-chan options) (assoc cmd :e2e (create-e2e))))
+
+
 
 (defn close-session! [options]
   (close! (:req-chan options)))

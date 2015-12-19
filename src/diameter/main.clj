@@ -23,7 +23,7 @@
 ;;A test command
 (def-cmd a-cmd 11 0 0)
 (def a-cmd 
-  {:cmd a-cmd-def, :app 100, :flags #{:r} 
+  {:cmd a-cmd-def, :app 100, :flags #{:r :p} 
        :required-avps #{{:code origin-realm-avp-id, :flags #{:m}, :data "cl"}
                         {:code origin-host-avp-id, :flags #{:m}, :data "localhost"}
                         ;{:code destination-host-avp-id, :flags #{:m}, :data "dia1"}
