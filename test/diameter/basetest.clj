@@ -93,8 +93,8 @@
                      (update :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "dia1"}))
                      (update :flags conj :p)) client)
     (do-cer dest-print-chan)
-    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
-    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
     (is (= {:cmd 11, :flags #{:r :p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
     (is (= {:cmd 11, :flags #{:p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the answer
 ;    (println (<!! dest-print-chan))

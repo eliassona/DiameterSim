@@ -169,10 +169,10 @@
         {:keys [raw-in-chan raw-out-chan] :as connection} (connect opts)]
     (if cer
       (let [cmd  (cer (assoc opts :hbh 0))]
-        (print-fn cmd)
+        (print-fn (assoc cmd :location :cer))
 	      (>!! raw-out-chan (encode cmd))
 	      (let [cea (decode-cmd (<!! raw-in-chan) false)]
-	        (print-fn cea)
+	        (print-fn (assoc cea :location :cea))
 	        (when (or (successful-cea? cea) ignore-cea)
            connection)))
       connection)))
@@ -181,7 +181,7 @@
   (let [{:keys [print-fn]} opts
         {:keys [raw-in-chan raw-out-chan] :as connection} (bind opts)
         cer (decode-cmd (<!! raw-in-chan) false)]
-      (print-fn cer)
+      (print-fn (assoc cer :location :cer))
       (>!! raw-out-chan (encode (cer-ans-of cer opts)))
       connection))
  
@@ -212,8 +212,8 @@
     (go-loop 
       []
       (let [{:keys [req cmd]} (route-fn (<! m-chan))]
-        (print-fn req)
-        (print-fn cmd)
+        (print-fn (assoc req :location :req-route))
+        (print-fn (assoc cmd :location :cmd-route))
         (if (proxiable? cmd)
           (if-let [dest-host (avp-of req destination-host-avp-id)]
             (if (= dest-host host)
