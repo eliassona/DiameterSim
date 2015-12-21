@@ -267,26 +267,31 @@
             (print-fn (decode-cmd (<!! raw-in-chan) false))
             (disconnect connection)))))))
 
-(declare start!)
+(declare start-peer!)
 
-(defn start-peers! [peers]
+(defn start-peers! [peers peer-table route-table]
   (doseq [p peers]
-    (apply start! (mapcat identity p))))
+    (start-peer! false (assoc p :peer-table peer-table, :route-table route-table))))
 
-(defn start! [& options]
+
+(defn start-peer! [main-peer options]
   (let [outstanding-reqs (atom {})
-        opts (merge (default-options) (apply hash-map options) (map-of outstanding-reqs))
-        {:keys [req-chan res-chan send-wdr wdr print-fn answer local-loop-fn]} opts]
+        opts (merge (default-options) options (map-of outstanding-reqs))
+        {:keys [req-chan res-chan send-wdr wdr print-fn answer local-loop-fn peer-table ]} opts]
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
         (main-loop! opts connection outstanding-reqs)
         (route-loop! opts)
         (local-loop-fn opts)
-        (start-peers! (-> opts :peer-table vals))
+        (when main-peer
+          (start-peers! (-> opts :peer-table vals), (:peer-table opts) (:route-table opts)))
         (assoc opts :connection connection)
         )
       (print-fn "Terminating, conenection not successful"))))
+  
+(defn start! [& options]
+  (start-peer! true (apply hash-map options)))
 
 
 (defn send-cmd! [cmd options]
