@@ -85,11 +85,11 @@
     (is (= "unknown does not exist in peer-table" (-> print-chan <!!))) ;local processing
     ))
 
-(comment
 
 (defn send-raw-cmd! [cmd opts]
   (let [c (-> opts :connection :raw-in-chan)]
     (>!! c (encode-cmd (assoc cmd :e2e (create-e2e), :hbh 10)))))
+
 (deftest verify-existing-remote-dest-host
   (let [print-chan (chan)
         print-fn #(put! print-chan %)
@@ -101,12 +101,12 @@
                      (update :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "dia1"}))
                      (update :flags conj :p)) client)
     (do-cer dest-print-chan)
-    (is (= {:cmd 11, :flags #{:r :p} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
-    (is (= {:cmd 11, :flags #{:r :p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p} :location :raw-in-chan} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent a request and this is it
+    (is (= {:cmd 11, :flags #{:r :p} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) 
+    (is (= {:cmd 11, :flags #{:r :p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) 
 ;    (is (= {:cmd 11, :flags #{:r :p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
 ;    (is (= {:cmd 11, :flags #{:p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the answer
     (println (<!! dest-print-chan))
 ;    (println (<!! dest-print-chan))
     ))
 
-)
