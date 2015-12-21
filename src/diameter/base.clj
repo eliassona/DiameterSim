@@ -246,6 +246,7 @@
             (condp = c
               raw-in-chan 
               (let [dv (-> v (decode-cmd false))]
+                (print-fn (assoc dv :location :raw-in-chan))
                 (if (request? dv)
                   (>! res-chan {:req dv, :cmd dv})
                   (if-let [mr (match-with-req! dv outstanding-reqs)] 
