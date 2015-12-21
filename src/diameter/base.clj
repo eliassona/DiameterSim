@@ -252,11 +252,13 @@
                      (>! res-chan {:req (:req mr), :cmd dv})
                      (print-fn (format "Could not find matching request for %s" dv)))))
               req-chan 
-              (if (request? v)
-                (do 
-                  (update-outstanding-reqs! v outstanding-reqs)
-                  (>! raw-out-chan (encode (assoc v :hbh hbh))))
-                (>! raw-out-chan (encode v))))
+              (do 
+                (print-fn (assoc v :location :req-chan)) 
+	              (if (request? v)
+	                (do 
+	                  (update-outstanding-reqs! v outstanding-reqs)
+	                  (>! raw-out-chan (encode (assoc v :hbh hbh))))
+	                (>! raw-out-chan (encode v)))))
             (recur (inc hbh)))
           (do 
             (>! raw-out-chan :disconnect)

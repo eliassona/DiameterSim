@@ -43,13 +43,13 @@
         client (start! :transport :local, :print-fn print-fn)]
     (do-cer print-chan)
     (send-cmd! (update a-cmd :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "localhost"})) client)
-    (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
-    (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= {:cmd 11, :flags #{:r} :location :req-chan} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer this is its request
+    (is (= {:cmd 11, :flags #{} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer and this is the answer
     (is (= {:cmd 11, :flags #{}, :location :local} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;local processing
     (is (= "answer" (<!! print-chan)))
     
     ))
-
 
 (deftest verify-non-existing-dest-host-non-proxiable
   (let [print-chan (chan)
@@ -57,8 +57,9 @@
         client (start! :transport :local, :print-fn print-fn)]
     (do-cer print-chan)
     (send-cmd! (update a-cmd :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "unknown"})) client)
-    (is (= {:cmd 11, :flags #{:r}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
-    (is (= {:cmd 11, :flags #{}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= {:cmd 11, :flags #{:r} :location :req-chan} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer this is its request
+    (is (= {:cmd 11, :flags #{} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer and this is the answer
     (is (= {:cmd 11, :flags #{}, :location :local} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;local processing
     (is (= "answer" (<!! print-chan)))
     
@@ -72,11 +73,13 @@
     (send-cmd! (-> a-cmd 
                  (update :required-avps #(conj % {:code destination-host-avp-id :flags #{:m}, :data "unknown"}))
                  (update :flags conj :p)) client)
-    (is (= {:cmd 11, :flags #{:r :p}} (-> print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
-    (is (= {:cmd 11, :flags #{:p}} (-> print-chan <!! (select-keys [:cmd :flags]))))   ;the local server has sent an answer and it has been paired with the request
+    (is (= {:cmd 11, :flags #{:r :p} :location :req-chan} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
+    (is (= {:cmd 11, :flags #{:r :p} :location :req-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer this is its request
+    (is (= {:cmd 11, :flags #{:p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer and this is the answer
     (is (= "unknown does not exist in peer-table" (-> print-chan <!!))) ;local processing
     ))
 
+(comment 
 
 (defn send-raw-cmd! [cmd opts]
   (let [c (-> opts :connection :raw-in-chan)]
@@ -97,6 +100,8 @@
     (is (= {:cmd 11, :flags #{:r :p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) ;the request is sent
     (is (= {:cmd 11, :flags #{:r :p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the request is sent
     (is (= {:cmd 11, :flags #{:p}} (-> dest-print-chan <!! (select-keys [:cmd :flags])))) ;the answer
-;    (println (<!! dest-print-chan))
+    (println (<!! dest-print-chan))
 ;    (println (<!! dest-print-chan))
     ))
+
+)
