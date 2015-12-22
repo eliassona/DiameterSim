@@ -139,7 +139,7 @@
    :print-fn println
    :wdr wd-req-of
    :req-chan  (chan 1000)
-   :res-chan (chan)
+   :route-chan (chan)
    :local-chan (chan) ;a cmd is pushed to this channel if the routing loop decides it should be processed locally
    :local-loop-fn local-loop! ;function that implements the local logic, shoule be a loop
    :peer-table {}
@@ -202,16 +202,12 @@
   (:req-chan (peer-table host)))
 
 
-(defn opts->res-chans [opts]
-  (mapv identity (conj (map :res-chan (vals (:peer-table opts))) (:res-chan opts)))
-  )
 
 (defn route-loop! [opts]
-  (let [{:keys [req-chan res-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table route-fn realm-strategy-fn]} opts
-        m-chan (async/merge (opts->res-chans opts))]
+  (let [{:keys [req-chan route-chan local-chan send-wdr wdr print-fn answer host realm peer-table route-table route-fn realm-strategy-fn]} opts]
     (go-loop 
       []
-      (let [{:keys [req cmd]} (route-fn (<! m-chan))]
+      (let [{:keys [req cmd]} (route-fn (<! route-chan))]
         (print-fn (assoc req :location :req-route))
         (print-fn (assoc cmd :location :cmd-route))
         (if (proxiable? cmd)
@@ -236,7 +232,7 @@
 
 
 (defn main-loop! [opts connection outstanding-reqs]
-  (let [{:keys [req-chan res-chan send-wdr wdr print-fn answer]} opts
+  (let [{:keys [req-chan route-chan send-wdr wdr print-fn answer]} opts
         {:keys [raw-in-chan raw-out-chan]} connection]
     (go-loop
       [hbh 1]
@@ -248,9 +244,9 @@
               (let [dv (-> v (decode-cmd false))]
                 (print-fn (assoc dv :location :raw-in-chan))
                 (if (request? dv)
-                  (>! res-chan {:req dv, :cmd dv})
+                  (>! route-chan {:req dv, :cmd dv})
                   (if-let [mr (match-with-req! dv outstanding-reqs)] 
-                     (>! res-chan {:req (:req mr), :cmd dv})
+                     (>! route-chan {:req (:req mr), :cmd dv})
                      (print-fn (format "Could not find matching request for %s" dv)))))
               req-chan 
               (do 
@@ -277,7 +273,7 @@
 (defn start-peer! [main-peer options]
   (let [outstanding-reqs (atom {})
         opts (merge (default-options) options (map-of outstanding-reqs))
-        {:keys [req-chan res-chan send-wdr wdr print-fn answer local-loop-fn peer-table ]} opts]
+        {:keys [req-chan route-chan send-wdr wdr print-fn answer local-loop-fn peer-table ]} opts]
     (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
       (do 
         (print-fn "Diameter session started")
