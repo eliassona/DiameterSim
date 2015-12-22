@@ -265,12 +265,13 @@
 
 (declare start-peer!)
 
-(defn start-peers! [peers peer-table route-table]
+(defn start-peers! [peers]
   (doseq [p peers]
-    (start-peer! false (assoc p :peer-table peer-table, :route-table route-table))))
+    (start-peer! p)))
 
 
-(defn start-peer! [main-peer options]
+
+(defn start-main! [options]
   (let [outstanding-reqs (atom {})
         opts (merge (default-options) options (map-of outstanding-reqs))
         {:keys [req-chan route-chan send-wdr wdr print-fn answer local-loop-fn peer-table ]} opts]
@@ -280,14 +281,25 @@
         (main-loop! opts connection outstanding-reqs)
         (route-loop! opts)
         (local-loop-fn opts)
-        (when main-peer
-          (start-peers! (-> opts :peer-table vals), (:peer-table opts) (:route-table opts)))
+        (start-peers! (map #(assoc % :route-chan route-chan) (-> opts :peer-table vals)))
+        (assoc opts :connection connection)
+        )
+      (print-fn "Terminating, conenection not successful"))))
+
+(defn start-peer! [options]
+  (let [outstanding-reqs (atom {})
+        opts (merge (default-options) options (map-of outstanding-reqs))
+        {:keys [req-chan route-chan send-wdr wdr print-fn answer local-loop-fn peer-table ]} opts]
+    (if-let [{:keys [raw-in-chan raw-out-chan] :as connection} (handshake! opts)]
+      (do 
+        (print-fn "Diameter session started")
+        (main-loop! opts connection outstanding-reqs)
         (assoc opts :connection connection)
         )
       (print-fn "Terminating, conenection not successful"))))
   
 (defn start! [& options]
-  (start-peer! true (apply hash-map options)))
+  (start-main! (apply hash-map options)))
 
 
 (defn send-cmd! [cmd options]

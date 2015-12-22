@@ -106,9 +106,9 @@
     (is (= {:cmd 11, :flags #{:r :p} :location :cmd-route} (-> print-chan <!! (select-keys [:cmd :flags :location])))) 
     (is (= {:cmd 11, :flags #{:r :p} :location :req-chan} (-> dest-print-chan <!! (select-keys [:cmd :flags :location])))) ;the request has been received by peer
     (is (= {:cmd 11, :flags #{:p} :location :raw-in-chan} (-> dest-print-chan <!! (select-keys [:cmd :flags :location])))) ;the answer
-    (is (= {:cmd 11, :flags #{:r :p} :location :req-route} (-> dest-print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer this is its request
+    (is (= {:cmd 11, :flags #{:r :p} :location :req-chan} (-> dest-print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer this is its request
     (is (= {:cmd 11, :flags #{:p} :location :cmd-route} (-> dest-print-chan <!! (select-keys [:cmd :flags :location]))))   ;the local server has sent an answer and this is the answer
-    (println (<!! dest-print-chan))
+    ;(println (<!! dest-print-chan))
 ;    (println (<!! dest-print-chan))
     ))
 
